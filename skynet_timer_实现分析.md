@@ -123,7 +123,7 @@ near 和 t 的元素都是一个链表，被 hash 到同一个位置的元素用
     		__sync_lock_release(&T->lock);
 		}
 
-*** add_node *** 函数，比较多位操作，不熟悉的情况，头很晕。  
+add_node 函数，比较多位操作，不熟悉的情况，头很晕。  
 
 TIME_NEAR_MASK 的二进制值是 0000 1111  
 
@@ -135,7 +135,7 @@ TIME_NEAR_MASK 的二进制值是 0000 1111
 
 		// TIME_NEAR_MASK 的二进制值是 0000 1111 
 		// 把最近要发生的事件(timeout 事件)放进 T->near 的 hash 表里面
-		// 下面的 if 换一种写法就好理解了，如：if ((time - current_time) <= TIME_NEAR_MASK)
+		// 换一种写法就好理解了，如：if ((time - current_time) <= TIME_NEAR_MASK)
     	if ((time|TIME_NEAR_MASK)==(current_time|TIME_NEAR_MASK)) {
     	    link(&T->near[time&TIME_NEAR_MASK],node);
     	}
