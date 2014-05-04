@@ -98,6 +98,95 @@ skynet_command(struct skynet_context * context, const char * cmd , const char * 
 
 skynet_context_new  函数比较复杂，待下一步详解。
 
+#### snlua 模块解析
+整个模块由 service_snlua.c 实现，编译完成后，以 so 的形式存在运行目录中，和 so 类型的服务接口一样。
+
+*** snlua_create 接口***
+```c
+struct snlua *
+snlua_create(void) {
+    struct snlua * l = skynet_malloc(sizeof(*l));
+    memset(l,0,sizeof(*l));
+    l->L = lua_newstate(skynet_lalloc, NULL);
+    l->init = _init;
+    return l;
+}
+
+```
+创建一个新的 luastate，返回 snlua 结构。
+
+*** snlua_init 接口***
+```c
+int
+snlua_init(struct snlua *l, struct skynet_context *ctx, const char * args) {
+    int sz = strlen(args);
+    char * tmp = skynet_malloc(sz+1);
+    memcpy(tmp, args, sz+1);
+    skynet_callback(ctx, l , _launch);
+    const char * self = skynet_command(ctx, "REG", NULL);
+    uint32_t handle_id = strtoul(self+1, NULL, 16);
+    // it must be first message
+    skynet_send(ctx, 0, handle_id, PTYPE_TAG_DONTCOPY,0, tmp, sz+1);
+    return 0;
+}
+```
+很多行，但其实只干了一件事，调用 skynet_send 给自己发个消息，让函数 _launch 处理该消息。
+
+而 _launch 函数又调用了 _init 函数
+
+*** _init 函数*** 
+```c
+static int
+_init(struct snlua *l, struct skynet_context *ctx, const char * args) {
+    lua_State *L = l->L;
+    l->ctx = ctx;
+    lua_gc(L, LUA_GCSTOP, 0);
+    luaL_openlibs(L);
+    lua_pushlightuserdata(L, l);
+    lua_setfield(L, LUA_REGISTRYINDEX, "skynet_lua");
+    luaL_requiref(L, "skynet.codecache", codecache , 0);
+    lua_pop(L,1);
+    lua_gc(L, LUA_GCRESTART, 0);
+    
+    // 初始化 lua 环境，设置 codecache 等
+    ...
+    int r = _load(L, &parm);
+    // 调用 _load 函数，完成实际 lua 代码的加载
+    ...
+    r = lua_pcall(L,n,0,traceback_index);
+    // 执行加载完成的 lua 文件
+    ...
+
+```
+_load 处理下 lua service path 的问题，再调用 _try_load 
+
+*** _try_load 函数 ***
+```c
+static int
+_try_load(lua_State *L, const char * path, int pathlen, const char * name) {
+    ...
+    int r = luaL_loadfile(L,tmp);
+    if (r == LUA_OK) {
+	...
+        luaL_Buffer b;
+        luaL_buffinit(L, &b);
+        ...
+    }
+}
+
+```
+调用 luaL_loadfile 加载 lua 源文件并设置相关环境。
+
+#### 利用 snlua 创建 lua service
+skynet 启动后立即利用 snlua 创建了 launcher 服务(见skynet_start.c)
+```c
+    ctx = skynet_context_new("snlua", "launcher");
+    if (ctx) {
+        skynet_command(ctx, "REG", ".launcher");
+	-- 启动 examples/main.lua
+        ctx = skynet_context_new("snlua", config->start);
+    }
+```
 
 
 
