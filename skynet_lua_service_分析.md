@@ -115,7 +115,7 @@ snlua_create(void) {
 ```
 创建一个新的 luastate，返回 snlua 结构。
 
-*** snlua_init 接口***
+snlua_init 接口
 ```c
 int
 snlua_init(struct snlua *l, struct skynet_context *ctx, const char * args) {
@@ -134,33 +134,30 @@ snlua_init(struct snlua *l, struct skynet_context *ctx, const char * args) {
 
 而 _launch 函数又调用了 _init 函数
 
-*** _init 函数*** 
+_init 函数 
 ```c
 static int
 _init(struct snlua *l, struct skynet_context *ctx, const char * args) {
     lua_State *L = l->L;
-    l->ctx = ctx;
+    ...
+    // 初始化 lua 环境，设置 codecache 等
     lua_gc(L, LUA_GCSTOP, 0);
     luaL_openlibs(L);
     lua_pushlightuserdata(L, l);
-    lua_setfield(L, LUA_REGISTRYINDEX, "skynet_lua");
-    luaL_requiref(L, "skynet.codecache", codecache , 0);
-    lua_pop(L,1);
-    lua_gc(L, LUA_GCRESTART, 0);
-    
-    // 初始化 lua 环境，设置 codecache 等
     ...
-    int r = _load(L, &parm);
+    ...
     // 调用 _load 函数，完成实际 lua 代码的加载
+    int r = _load(L, &parm);
+    
     ...
-    r = lua_pcall(L,n,0,traceback_index);
     // 执行加载完成的 lua 文件
+    r = lua_pcall(L,n,0,traceback_index);
     ...
 
 ```
 _load 处理下 lua service path 的问题，再调用 _try_load 
 
-*** _try_load 函数 ***
+_try_load 函数
 ```c
 static int
 _try_load(lua_State *L, const char * path, int pathlen, const char * name) {
@@ -178,17 +175,39 @@ _try_load(lua_State *L, const char * path, int pathlen, const char * name) {
 调用 luaL_loadfile 加载 lua 源文件并设置相关环境。
 
 #### 利用 snlua 创建 lua service
-skynet 启动后立即利用 snlua 创建了 launcher 服务(见skynet_start.c)
+以 simpledb 为例，创建一个 simpledb 的服务：skynet_context_new("snlua", "simpledb")  
+
+skynet_context_new 函数:
 ```c
-    ctx = skynet_context_new("snlua", "launcher");
-    if (ctx) {
-        skynet_command(ctx, "REG", ".launcher");
-	-- 启动 examples/main.lua
-        ctx = skynet_context_new("snlua", config->start);
-    }
+skynet_context_new(const char * name, const char *param) {
+    /* 利用 dlopen 加载 snlua.so ，创建一个新 mod 结构。
+    	mod->create   -->  snlua_create
+    	mod->init     -->  snlua_init
+    	mod->release  --> snlua_release
+    */
+    struct skynet_module * mod = skynet_module_query(name);
+    ...
+    
+    // 本质上是调用 snlua_create
+    void *inst = skynet_module_instance_create(mod);
+    ...
+    // 创建新的 ctx 对象
+    struct skynet_context * ctx = skynet_malloc(sizeof(*ctx));
+    ...
+    ctx->mod = mod;
+    ctx->instance = inst;
+    ...
+    // 注册 service，设置对应的 service handle
+    ctx->handle = skynet_handle_register(ctx);
+
+    //创建该 service 的私有消息队列
+    struct message_queue * queue = ctx->queue = skynet_mq_create(ctx->handle);
+    ...
+    // 本质上调用 snlua_init，完成 simpledb 服务加载
+    int r = skynet_module_instance_init(mod, inst, ctx, param);
+    ...   
+}
 ```
-
-
 
 
 
