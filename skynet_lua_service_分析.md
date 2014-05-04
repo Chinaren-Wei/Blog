@@ -27,11 +27,10 @@ examples 中， config.start 选项配置 lua service 启动入口，即：examp
 function skynet.newservice(name, ...)
     local param =  table.concat({"snlua", name, ...}, " ")
     local handle = skynet.call(".launcher", "text" , param)
-    --对于 simpledb，最终的函数调用应该是 skynet.call(".launcher", "text" , "snlua simpledb")
     ...
 end
 ```
-调用 skynet.call 完成。
+对于 simpledb，最终的函数调用应该是 skynet.call(".launcher", "text" , "snlua simpledb")
 
 *** skynet.call 函数：***
 
@@ -44,13 +43,13 @@ function skynet.call(addr, typename, ...)
     return p.unpack(yield_call(addr, session))
 end
 ```
-调用 c.send 函数(一个 c 封装)向之前已启动的服务 ".launcher" 发一个消息，消息参数为 snlua simpledb
+调用 c.send 函数(一个 c 封装)向名字为 ".launcher" 的服务发发送一个消息，消息参数为 snlua simpledb
 
-.lauhcher 是服务管理器，封装了服务的启动、GC、Reload等功能；
+.lauhcher 是一个 lua service 的管理器，封装了 service 的START、GC、RELOAD等功能；
 
-.launcher 收到参数为 snlua simpledb 的消息时，调用 skynet.launch(service, param) 函数， 最终调用 c.command("LAUNCH", table.concat({...}," ")) 。
+.launcher 收到参数为 snlua simpledb 的消息时，调用 skynet.launch(service, param) 函数， 最终调用 c.command("LAUNCH", table.concat({...}," ")) 启动服务。
 
-c.command 是一个 c 语言的封装，详细见 lua-skynet.c 的 _command 函数。
+c.command 是一个 skynet 底层函数的 c 语言的封装，详细见 lua-skynet.c 的 _command 函数。
 
 ```c
 static int
@@ -68,9 +67,10 @@ _command(lua_State *L) {
     ...
 }
 ```
-***parm*** 是刚才传递进来的参数 snlua simpledb
-***cmd*** 是 LAUNCH
-然后进入 skynet_command
+***parm：*** 刚才传递进来的参数串 snlua simpledb  
+***cmd：*** 字符串 LAUNCH
+
+然后进入 ***skynet_command*** 函数
 ```c
 const char *
 skynet_command(struct skynet_context * context, const char * cmd , const char * param) {
@@ -94,9 +94,9 @@ skynet_command(struct skynet_context * context, const char * cmd , const char * 
 }
 
 ```
-函数 skynet_context_new 完成实际的 lua 服务的加载任务，最终返回成功加载服务器的 handle，也就是 context->result。
+函数 skynet_context_new 实际的 lua service 的加载任务，然会返回成功加载服务器的 handle，也就是 context->result。
 
-skynet_context_new  函数待后面详解
+skynet_context_new  函数比较复杂，待下一步详解。
 
 
 
