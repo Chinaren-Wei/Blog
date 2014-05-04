@@ -1,4 +1,11 @@
-# Skynet Lua Service 分析
+# Skynet Lua Service 加载分析
+
+#### 概要
+***lua 启动 lua service:*** 向 .launch 服务发送一个消息(消息里面含有要启动服务的 name)来启动一个 lua 服务。 
+
+***c 启动 lua service:*** 直接调用 snlua 模块，如：skynet_context_new("snlua", "launcher") 启动 launcher 服务
+
+service 加载完成后，每个 lua service 都包含一个独立的 luastate。
 
 #### Lua Service 的启动
 examples 中， config.start 选项配置 lua service 启动入口，即：examples/main.lua，它完成的功能很简单，把相关服务逐个启动起来，代码如下：  
