@@ -94,9 +94,7 @@ skynet_command(struct skynet_context * context, const char * cmd , const char * 
 }
 
 ```
-函数 skynet_context_new 实际的 lua service 的加载任务，然会返回成功加载服务器的 handle，也就是 context->result。
-
-skynet_context_new  函数比较复杂，待下一步详解。
+函数 skynet_context_new 实际的 lua service 的加载任务；skynet_context_new  函数比较复杂，待下一步详解。
 
 #### snlua 模块解析
 整个模块由 service_snlua.c 实现，编译完成后，以 so 的形式存在运行目录中，和 so 类型的服务接口一样。
